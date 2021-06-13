@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<header>
+
+</header>
+<body style="padding:50px;">
+<h1>Knowledge Representation and Reasoning Assignment</h1>
+<h2>Part 2</h2>
+<form id="form">
+    <h3>Please input Knowledge Base below: </h3>
+    <textarea name="IN" id ="IN" style="width:400px; height:150px"></textarea>
+    <h3>Please input Query below: </h3>
+    <textarea name="query" id ="query" style="width:400px; height:25px"></textarea><br><br>
+    <input type="button" onclick="part2()" value="Submit">
+    <button type="reset" onClick="window.location.reload()" value="Reset">Reset</button>
+</form>
+
+<script>
+    function part2() {
+        //Note that 'IN' means inheritance network.
+        var x = document.getElementById("form");
+        var user_input = x.elements[0].value; //User inputted IN from HTML form.
+        var user_query = x.elements[1].value; //User inputted query from HTML form.
+
+        //Splitting the user's inputted IN by '\n'.
+        var concepts = user_input.split('\n'); //Array of concepts.
+        var nodes = [];
+
+        /* ----- CREATING ARRAY OF NODES -----*/
+        //Accessing each concept.
+        for (var i = 0; i < concepts.length; i++) {
+            var concept = concepts[i]; //Current concept being processed.
+            var sub_concept = concept.substr(0, concept.indexOf(' ')); //Extracting sub-concept of current concept.
+            //Checks if sub-concept already exists in the nodes array.
+            if (contains_node(sub_concept) === true) {
+                //Creates a new node object and pushes edge in it's edge array.
+                push_edge(new_edge(concept), sub_concept);
+            } else {
+                //Create new node object and pushes it into node array.
+                nodes.push(new_node(sub_concept));
+                //Create new edge object and pushes it into edge array.
+                push_edge(new_edge(concept), sub_concept);
+            }
+        }
+
+        /* ----- QUERY ----- */
+        //Splitting user's query by ' '.
+        var query_split = user_query.split(" ");
+        var query_start = query_split[0]; //Extracting sub-concept.
+        var query_end = query_split[2]; //Extracting super-concept.
+
+        /* ----- QUERY HANDLING ----- */
+        //Finds all possible paths and displays them and stores them in the array paths.
+        var paths = [];
+        find_paths(query_start, query_end, []);
+        var shortest_paths = find_shortest_path(); //Finds the shortest paths.
+        var inferential_paths = find_inferential_path(); //Finds the inferential paths.
+
+        //Displays all different types of paths in HTML.
+        var paths_strings = [], shortest_paths_strings = [], inferential_paths_strings = [];
+        for(i=0; i<paths.length; i++) {
+            paths_strings.push(paths[i].join(' '));
+        }
+        for(i=0;i<shortest_paths.length;i++){
+            shortest_paths_strings.push(shortest_paths[i].join(' '));
+        }
+        for(i=0;i<inferential_paths.length;i++){
+            inferential_paths_strings.push(inferential_paths[i].join(' '));
+        }
+        document.getElementById("all").innerHTML = paths_strings.join('\n');
+        document.getElementById("shortest").innerHTML = shortest_paths_strings.join('\n');
+        document.getElementById("inferential").innerHTML = inferential_paths_strings.join('\n');
+
+
+        /* ------------------------ FUNCTIONS --------------------------- */
+
+        //Creates a new node objects and returns it.
+        function new_node(sub_concept) {
+            //Returns an node object with an empty edge array.
+            return {name: sub_concept, edges: []};
+        }
+
+        //Creates a new edge object and returns it.
+        function new_edge(concept) {
+            //Splits the concept by " " into an array.
+            var split = concept.split(" ");
+            var sub_concept = split[0]; //Extracting sub-concept.
+            var relation = split[1]; //Extracting relation.
+            var super_concept = split[2]; //Extracting super-concept.
+
+            //Determines whether the relation is negative or positive.
+            var concept_polarity = 1; //1 == true (positive)
+            if (relation.includes("NOT")) {
+                concept_polarity = 0; //0 == false (negative)
+            }
+
+            //Returns the new edge object.
+            return {subnode: sub_concept, supernode: super_concept, polarity: concept_polarity};
+        }
+
+        //Pushes edge object into node's array of edges.
+        function push_edge(edge, sub_concept) {
+            //Accessing each node.
+            for (var i = 0; i < nodes.length; i++) {
+                var name = nodes[i].name;
+                //If current node has the same name as sub-concept.
+                if (name.localeCompare(sub_concept) === 0) {
+                    //Pushes edge object into its arrays of edges.
+                    var edge_array = nodes[i].edges;
+                    edge_array.push(edge);
+                    break;
+                }
+            }
+        }
+
+        //Checks if sub-concept is already a node in the IN// .
+        function contains_node(sub_concept) {
+            for (var i = 0; i < nodes.length; i++) {
+                var name = nodes[i].name;
+                if (name.localeCompare(sub_concept) === 0) {
+                    return true; //Sub-concept exists as a node in the IN.
+                }
+            }
+            return false; //Sub-concept doesn't exists as a node in the IN.
+        }
+
+        function find_paths(start, end, path) {
+            var current_node;
+            var current_edges;
+            //Accessing each node in the IN.
+            for (var i = 0; i < nodes.length; i++) {
+                var node_name = nodes[i].name; //Current node's name.
+                //If current node's name is same as the start node.
+                if (node_name.localeCompare(start) === 0) {
+                    //Sets the current node and it's edges as variables.
+                    current_node = nodes[i];
+                    current_edges = current_node.edges;
+                    break;
+                }
+            }
+
+            //If current node has no edges.
+            if (current_edges == undefined || current_edges.length < 1) {
+                //Do nothing.
+            } else {
+                //Accessing each edge in current node.
+                for (var j = 0; j < current_edges.length; j++) {
+                    var new_path = path.slice(0); //Duplicating current path variable.
+                    var next_node = current_edges[j].supernode; //Setting the next node.
+                    //If the next node is the query's super-concept.
+                    if (next_node.localeCompare(end) == 0) {
+                        //Pushes the name of the current node on current path.
+                        new_path.push(current_node.name);
+                        //Pushes the polarity of the next node on current path.
+                        if (current_edges[j].polarity == 0)
+                            new_path.push("IS-NOT-A");
+                        else
+                            new_path.push("IS-A");
+                        //Pushes the name of next node on current path.
+                        new_path.push(next_node);
+                        //Adds it as one of the possible paths.
+                        paths.push(new_path);
+                        //If negative edge is found and it is not in the end, keep searching.
+                    } else if (current_edges[j].polarity == 0) {
+                        //Do nothing
+                    } else {
+                        //Pushes name of current node and positive relation in path and keeps searching.
+                        new_path.push(current_node.name);
+                        new_path.push("IS-A");
+                        find_paths(next_node, end, new_path);
+                    }
+                }
+            }
+        }
+
+        //Finds the shortest paths.
+        function find_shortest_path() {
+            var found_paths = []; //Stores multiple short paths.
+            var smaller = paths[0].length; //Setting smallest path to the first path in the path array.
+            //Scans through each path.
+            for (var i = 0; i < paths.length; i++) {
+                //If the number of elements of the current path is smaller than the smallest path.
+                if (paths[i].length < smaller) {
+                    smaller = paths[i].length; //Updates smallest paths.
+                }
+            }
+            //Smaller = path with smallest number of elements.
+            //Pushes all paths with the same number of elements as 'smaller' into shortest-paths in case of duplicates.
+            for (i = 0; i < paths.length; i++) {
+                if (paths[i].length == smaller) {
+                    found_paths.push(paths[i]);
+                }
+            }
+            return found_paths; //Returns an array with paths that have the smallest number of elements.
+        }
+
+        //Finds inferential paths and returns and array of them.
+        function find_inferential_path() {
+            var found_paths = [];
+            //Accessing each path.
+            for (var i = 0; i < paths.length; i++) {
+                //If a path is not redundant and not false, pushes it into the array of found paths.
+                if (is_redundant(paths[i]) == false && is_preempted(paths[i]) == false) {
+                    found_paths.push(paths[i]);
+                }
+            }
+            return found_paths; //Returns an array of inferential paths.
+        }
+
+        //Checks if a path is pre-empted.
+        function is_preempted(path) {
+            for (var i = 0; i < paths.length; i++) {
+                //Ensures that the same path isn't considered.
+                if (paths[i] !== path) {
+                    var j = 0;
+                    //Accessing each node and not relation.
+                    while (j < paths[i].length) {
+                        //Stops when the nodes of both paths are not longer the same.
+                        if (paths[i][j] != path[j]) {
+                            /* Note: Nodes of both paths no longer the same: paths[i][j].
+                                     Nodes of both paths were last the same: paths[i][j-2].
+                            */
+                            var v = paths[i][j - 2]; //The pre-emptor node -- for reference.
+                            //If they have the same ending node.
+                            if ((paths[i][paths[i].length - 1] == path[path.length - 1])) {
+                                //If the ending relation is opposite of searching path
+                                if ((path[path.length - 2].indexOf("-NOT-") === -1) && (paths[i][paths[i].length - 2].indexOf("-NOT-") !== -1)) {
+                                    //If the end of the other path is directly after v.
+                                    if (paths[i][j] == paths[i][paths[i].length - 1]) {
+                                        return true; //The path has pre-empted edges.
+                                    }
+                                } else if ((path[path.length - 2].indexOf("-NOT-") !== -1) && (paths[i][paths[i].length - 2].indexOf("-NOT-") === -1)) {
+                                    //If the end of the other path is directly after v.
+                                    if (paths[i][j] == paths[i][paths[i].length - 1]) {
+                                        return true; //The path has pre-empted edges.
+                                    }
+                                }
+                            }
+                            break; //Leaves if ending nodes are not the same.
+                        }
+                        j += 2; //'j' only represents node names and not relations for a faster algorithm.
+                    }
+                }
+            }
+            return false; //The path does not have pre-empted edges.
+        }
+
+        function is_redundant(path) {
+            //Accessing each path.
+            for (var i = 0; i < paths.length; i++) {
+                //Ensures that the same path isn't considered.
+                if (paths[i] !== path) {
+                    //Creating copies of paths.
+                    var path_copy = path.slice(0);
+                    var otherpath_copy = paths[i].slice(0);
+                    var j = 0;
+                    //Accessing each node and not relation.
+                    while (j < paths[i].length) {
+                        //Stops when the nodes of both paths are not longer the same.
+                        if (path[j] !== paths[i][j]) {
+                            //Removing all previous elements.
+                            path_copy.splice(0, j - 1);
+                            otherpath_copy.splice(0, j - 1);
+                            var y = path_copy.toString(); //y - ending of current path.
+                            var othery = otherpath_copy.toString(); //othery - ending of other path.
+                            //If y is found in the rest of the other path.
+                            if (othery.indexOf(y) !== -1) {
+                                return true; //The path is redundant.
+                            }
+                            break; //Search next path.
+                        }
+                        j += 2;
+                    }
+                }
+            }
+            return false; //The path is not redundant.
+        }
+    }
+</script>
+<h3>Results: </h3>
+<h4>All paths:</h4>
+<pre id="all"></pre>
+<h4>Preferred (shortest) paths:</h4>
+<pre id="shortest"></pre>
+<h4>Preferred (inferential) paths:</h4>
+<pre id="inferential"></pre>
+</body>
+</html>

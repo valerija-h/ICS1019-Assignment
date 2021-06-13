@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<header>
+    <title>KRAR Assignment Part 1</title>
+</header>
+<body style="padding:50px;">
+<h1>Knowledge Representation and Reasoning Assignment</h1>
+<h2>Part 1</h2>
+<form id="form">
+    <h3>Please input Knowledge Base below: </h3>
+    <textarea name="kb" id ="kb" style="width:400px; height:150px"></textarea>
+    <h3>Please input Query below: </h3>
+    <textarea name="query" id ="query" style="width:400px; height:25px"></textarea><br><br>
+    <input type="button" onclick="part1()" value="Submit">
+    <button type="reset" onClick="window.location.reload()" value="Reset">Reset</button>
+</form>
+<script>
+function part1(){
+    //Reading input from HTML form.
+    var x = document.getElementById("form");
+    var user_input = x.elements[0].value; //User inputted knowledge base.
+    var user_query = x.elements[1].value; //User inputted query.
+
+    /* ----- INPUTTING CLAUSES -----*/
+    //Splitting input by '\n' into a a temporary array of clauses.
+    var clauses = []; //Knowledge base.
+    var temp_clauses = user_input.split('\n');
+
+    //Accessing each clause.
+    for(var i=0; i<temp_clauses.length; i++) {
+        temp_clauses[i] = temp_clauses[i].replace(/[\[\]']+/g,''); //Removes the square brackets from the clause.
+        var temp_literals = temp_clauses[i].split(','); //Splitting clause by ',' to create an array of literals.
+        clauses[i] = []; //Defines the current clauses as empty in the knowledge base.
+        //Accessing each literal
+        for(var j=0; j<temp_literals.length; j++){
+            //Checks if the literal is negative.
+            if(temp_literals[j].indexOf('!') >= 0) {
+                //Removes the first character, '!' and adds to the current clause.
+                clauses[i].push({name:temp_literals[j].substr(1),polarity:false});
+            } else {
+                //Adds the literal to the current clause
+                clauses[i].push({name:temp_literals[j],polarity:true});
+            }
+        }
+    }
+
+    /* ----- INPUTTING QUERIES -----*/
+    var queryclause = []; //Will hold user's inputted query.
+    user_query = user_query.replace(/[\[\]']+/g,''); //Removes the square brackets from the query.
+
+    //Adds the literal to the query as a negative or positive literal.
+    if(user_query.indexOf('!') >= 0){
+        queryclause.push({name:user_query.substr(1),polarity:false});
+    }else{
+        queryclause.push({name:user_query,polarity:true});
+    }
+
+    /* ----- RESOLUTION -----*/
+    //Displays whether the query is found or not.
+    if(is_resolved(queryclause) === true){
+        document.getElementById("found").innerHTML = "RESOLVED."
+    } else {
+        document.getElementById("found").innerHTML = "NOT RESOLVED."
+    }
+
+    /*------- FUNCTIONS ------*/
+    function is_resolved(query){
+        var n = query.length; //Number of elements in the current query.
+        //If empty returns false - stopping condition.
+        if(n === 0){
+            return true;
+        }else{
+            //Check if a literal in the current query has an opposite literal in the KB.
+            for(var i=0; i<n; i++){
+                var opp_clause = find_opp_literal(query[i]);
+                //If an opposite literal is found, query is replaced.
+                if(opp_clause !== null){
+                    var new_query = replace(query,opp_clause);
+                    //If the new query becomes resolved return true, else search next literal.
+                    if(is_resolved(new_query) === true){
+                        return true;
+                    }
+                }
+            }
+            return false; //If no opposing literals were found.
+        }
+    }
+
+    //Finds a clause with an opposite literal and returns it.
+    function find_opp_literal(literal) {
+        //Accessing each clause in the KB.
+        for (var i = 0; i < clauses.length; i++) {
+            //Accessing each literal in the KB.
+            for (var j = 0; j < clauses[i].length; j++) {
+                //If there is a literal with same name and opposite polarity, returns the found clause.
+                if ((literal.name === clauses[i][j].name) && (literal.polarity !== clauses[i][j].polarity)) {
+                    return clauses[i];
+                }
+            }
+        }
+        return null;
+    }
+
+    //Replaces all opposite literals and returns the new clause.
+    function replace(clause, opp_clause) {
+        //Adding literals into the new query clause.
+        for (var j = 0; j < opp_clause.length; j++) {
+            //If the name doesn't exist in current clause, adds it.
+            if (has_name(clause, opp_clause[j].name) === false) {
+                clause.push({name: opp_clause[j].name, polarity: opp_clause[j].polarity});
+            }
+        }
+        //Accesing each literal of the query clause.
+        for (var i = 0; i < clause.length; i++) {
+            //Accessing each literal of the clause containing opposite literal.
+            for (j = 0; j < opp_clause.length; j++) {
+                //If there is a literal found with same name and opposite polarity, remove current literal.
+                if ((clause[i].name === opp_clause[j].name) && (clause[i].polarity !== opp_clause[j].polarity)) {
+                    clause.splice([i], 1);
+                }
+                //If the clause is now empty, return it.
+                if(clause.length === 0){
+                    return clause;
+                }
+            }
+        }
+        //Return modified clause.
+        return clause;
+    }
+
+    //Checks if a clause already has a literal with 'name'.
+    function has_name(clause, name){
+        //Accessing each literal in clause.
+        for (var i = 0;i < clause.length;i++){
+            //If the name is the same as current literal, returns true.
+            if(clause[i].name === name){
+                return true;
+            }
+        }
+        return false;
+    }
+}
+</script>
+<h3>Results: </h3>
+<pre id="found"></pre>
+</body>
+</html>
